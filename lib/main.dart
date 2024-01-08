@@ -289,6 +289,11 @@ class _MainAppState extends State<MainApp> {
     log(utcTimeZone);
 
     DateTime time = DateTime.now();
+
+    //BIRTHDAY SCHEDULING
+    // time.add(birthday.difference(DateTime.now()));
+
+    //USING THIS JUST FOR FASTER TESTING
     time.add(const Duration(seconds: 3));
 
     await AwesomeNotifications().createNotification(
