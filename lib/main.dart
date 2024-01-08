@@ -1,21 +1,46 @@
 import 'dart:developer';
 import 'dart:math' show Random;
 
-import 'package:contacts2/NotificationService.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_sms/flutter_sms.dart';
 
 import 'DatabaseHelper.dart';
 import 'Contact.dart';
 
-// import 'package:timezone/data/latest.dart' as tz;
+import 'package:awesome_notifications/awesome_notifications.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // tz.initializeTimeZones();
   await DatabaseHelper().initDB();
-  // await NotificationService().initNotification();
+
+  AwesomeNotifications().initialize(
+      // set the icon to null if you want to use the default app icon
+      null,
+      [
+        NotificationChannel(
+            channelGroupKey: 'basic_channel_group',
+            channelKey: 'basic_channel',
+            channelName: 'Basic notifications',
+            channelDescription: 'Notification channel for basic tests',
+            defaultColor: Color(0xFF9D50DD),
+            ledColor: Colors.white)
+      ],
+      // Channel groups are only visual and are not required
+      channelGroups: [
+        NotificationChannelGroup(
+            channelGroupKey: 'basic_channel_group',
+            channelGroupName: 'Basic group')
+      ],
+      debug: true);
+  AwesomeNotifications().isNotificationAllowed().then((isAllowed) {
+    if (!isAllowed) {
+      // This is just a basic example. For real apps, you must show some
+      // friendly dialog box before call the request method.
+      // This is very important to not harm the user experience
+      AwesomeNotifications().requestPermissionToSendNotifications();
+    }
+  });
+
   runApp(const SqliteDemoApp());
 }
 
@@ -62,6 +87,26 @@ class _MainAppState extends State<MainApp> {
   void initState() {
     super.initState();
     dbHelper = DatabaseHelper();
+
+    AwesomeNotifications().setListeners(
+      onActionReceivedMethod: (ReceivedAction receivedAction) async {
+        log('1');
+      },
+      onNotificationCreatedMethod:
+          (ReceivedNotification receivedNotification) async {
+        log('2');
+      },
+      onNotificationDisplayedMethod:
+          (ReceivedNotification receivedNotification) async {
+        if (receivedNotification.id == 11) {
+          _sendSMS('Super Idol', ['1111111111']);
+        }
+        log('3');
+      },
+      onDismissActionReceivedMethod: (ReceivedAction receivedAction) async {
+        log('4');
+      },
+    );
   }
 
   @override
@@ -119,12 +164,14 @@ class _MainAppState extends State<MainApp> {
                           TextFormField(
                             onTap: () async {
                               log('tapped');
-                              final DateTime? newDate = await showDatePicker(
+
+                              final DateTime? newDate =
+                                  await showDateTimePicker(
                                 context: context,
-                                initialDate: birthday,
+                                initialDate: DateTime.now(),
                                 firstDate: birthday,
-                                lastDate: birthday,
-                                helpText: 'Select a date',
+                                lastDate: DateTime.now()
+                                    .add(const Duration(hours: 10000000)),
                               );
                               birthday = newDate ?? birthday;
                               birthdayController.text = birthday.toString();
@@ -134,17 +181,6 @@ class _MainAppState extends State<MainApp> {
                             decoration:
                                 const InputDecoration(labelText: 'Birthday'),
                           ),
-
-                          // TextFormField(
-                          //   controller: ageController,
-                          //   keyboardType: TextInputType.number,
-                          //   inputFormatters: [
-                          //     FilteringTextInputFormatter.allow(
-                          //         RegExp(r'[0-9]')),
-                          //   ],
-                          //   decoration: const InputDecoration(
-                          //       hintText: 'Enter your age', labelText: 'Age'),
-                          // ),
                           Row(
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: [
@@ -167,6 +203,43 @@ class _MainAppState extends State<MainApp> {
         ));
   }
 
+  Future<DateTime?> showDateTimePicker({
+    required BuildContext context,
+    DateTime? initialDate,
+    DateTime? firstDate,
+    DateTime? lastDate,
+  }) async {
+    initialDate ??= DateTime.now();
+    firstDate ??= initialDate.subtract(const Duration(days: 365 * 100));
+    lastDate ??= firstDate.add(const Duration(days: 365 * 200));
+
+    final DateTime? selectedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate.isBefore(initialDate) ? initialDate : DateTime.now(),
+      lastDate: lastDate,
+    );
+
+    if (selectedDate == null) return null;
+
+    if (!context.mounted) return selectedDate;
+
+    final TimeOfDay? selectedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(selectedDate),
+    );
+
+    return selectedTime == null
+        ? selectedDate
+        : DateTime(
+            selectedDate.year,
+            selectedDate.month,
+            selectedDate.day,
+            selectedTime.hour,
+            selectedTime.minute,
+          );
+  }
+
   Future<void> addOrEditUser() async {
     String VALfirst_name = first_name.text;
     String VALlast_name = last_name.text;
@@ -186,22 +259,61 @@ class _MainAppState extends State<MainApp> {
           birthday: birthday);
       await addUser(user);
     } else {
-      // contact.email = email;
-      // contact.age = int.parse(age);
-      // contact.name = name;
+      contact.first_name = VALfirst_name;
+      contact.last_name = VALlast_name;
+      contact.company = VALcompany;
+      contact.phone = VALphone;
+      contact.email = VALemail;
+      contact.address = VALaddress;
+      contact.birthday = birthday;
       await updateUser(contact);
     }
 
-    _sendSMS('Super Idol', ['1111111111']);
+    // _sendSMS('Super Idol', ['1111111111']);
 
-    // log('reached here');
-    // await NotificationService().scheduleNotification(
-    //     title: 'Happy Birthday!',
-    //     body: '${first_name.text} ${last_name.text}',
-    //     scheduledNotificationDateTime:
-    //         DateTime.now().add(const Duration(seconds: 2)));
+    AwesomeNotifications().createNotification(
+        content: NotificationContent(
+      id: 10,
+      channelKey: 'basic_channel',
+      actionType: ActionType.Default,
+      title: 'Notification set for your birthday!',
+      body: '${contact.first_name} ${contact.last_name}',
+    ));
 
-    // log('reached here2');
+    String localTimeZone =
+        await AwesomeNotifications().getLocalTimeZoneIdentifier();
+    String utcTimeZone =
+        await AwesomeNotifications().getLocalTimeZoneIdentifier();
+
+    log(localTimeZone);
+    log(utcTimeZone);
+
+    DateTime time = DateTime.now();
+    time.add(const Duration(seconds: 3));
+
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: 11,
+        channelKey: 'basic_channel',
+        title: 'Happy Birthday!',
+        body: '${contact.first_name} ${contact.last_name}',
+        wakeUpScreen: true,
+        category: NotificationCategory.Event,
+      ),
+      schedule:
+          // NotificationInterval(interval: 5, timeZone: localTimeZone, repeats: false), OR
+          NotificationCalendar(
+        day: time.day,
+        month: time.month,
+        year: time.year,
+        hour: time.hour,
+        second: time.second,
+        timeZone: localTimeZone,
+        preciseAlarm: true,
+      ),
+    );
+
+    log('reached here2');
     resetData();
     setState(() {});
   }
@@ -211,7 +323,7 @@ class _MainAppState extends State<MainApp> {
       String _result = await sendSMS(
         message: msg,
         recipients: recipients,
-        sendDirect: false,
+        sendDirect: true,
       );
     } catch (error) {
       print(error.toString());
@@ -259,7 +371,7 @@ class _MainAppState extends State<MainApp> {
                     },
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      // onTap: () => populateFields(snapshot.data![position]),
+                      onTap: () => populateFields(snapshot.data![position]),
                       child: Container(
                         margin: EdgeInsets.all(20),
                         decoration: BoxDecoration(color: Colors.amber[50]),
@@ -272,7 +384,7 @@ class _MainAppState extends State<MainApp> {
                               child: Text(
                                 snapshot.data![position].first_name,
                                 style: const TextStyle(
-                                    fontSize: 22.0,
+                                    fontSize: 12.0,
                                     fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -282,7 +394,7 @@ class _MainAppState extends State<MainApp> {
                               child: Text(
                                 snapshot.data![position].last_name,
                                 style: const TextStyle(
-                                    fontSize: 22.0,
+                                    fontSize: 12.0,
                                     fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -292,7 +404,7 @@ class _MainAppState extends State<MainApp> {
                               child: Text(
                                 snapshot.data![position].company,
                                 style: const TextStyle(
-                                    fontSize: 22.0,
+                                    fontSize: 12.0,
                                     fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -302,7 +414,7 @@ class _MainAppState extends State<MainApp> {
                               child: Text(
                                 snapshot.data![position].phone,
                                 style: const TextStyle(
-                                    fontSize: 22.0,
+                                    fontSize: 12.0,
                                     fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -312,7 +424,7 @@ class _MainAppState extends State<MainApp> {
                               child: Text(
                                 snapshot.data![position].email,
                                 style: const TextStyle(
-                                    fontSize: 22.0,
+                                    fontSize: 12.0,
                                     fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -322,7 +434,7 @@ class _MainAppState extends State<MainApp> {
                               child: Text(
                                 snapshot.data![position].address,
                                 style: const TextStyle(
-                                    fontSize: 22.0,
+                                    fontSize: 12.0,
                                     fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -332,7 +444,7 @@ class _MainAppState extends State<MainApp> {
                               child: Text(
                                 snapshot.data![position].birthday.toString(),
                                 style: const TextStyle(
-                                    fontSize: 22.0,
+                                    fontSize: 12.0,
                                     fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -352,11 +464,17 @@ class _MainAppState extends State<MainApp> {
     );
   }
 
-  // void populateFields(Contact user) {
-  //   contact = user;
-  //   nameController.text = contact.name;
-  //   ageController.text = contact.age.toString();
-  //   emailController.text = contact.email;
-  //   isEditing = true;
-  // }
+  void populateFields(Contact user) {
+    contact = user;
+    first_name.text = contact.first_name;
+    last_name.text = contact.last_name;
+    company.text = contact.company;
+    phone.text = contact.phone;
+    email.text = contact.email;
+    address.text = contact.address;
+    contact.birthday = birthday;
+    birthdayController.text = birthday.toString();
+
+    isEditing = true;
+  }
 }

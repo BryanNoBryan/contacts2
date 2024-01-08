@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+<uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
 <uses-permission android:name="android.permission.SEND_SMS" />
 <queries>
     <intent>
@@ -6,6 +11,7 @@
         <data android:scheme="smsto"/>
     </intent>
 </queries>
+
     <application
         android:label="contacts2"
         android:name="${applicationName}"
@@ -37,4 +43,7 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
+
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 </manifest>
