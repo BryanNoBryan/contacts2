@@ -71,7 +71,14 @@ class MainApp extends StatefulWidget {
 class _MainAppState extends State<MainApp> {
   late DatabaseHelper dbHelper;
   bool isEditing = false;
-  late Contact contact;
+  late Contact contact = Contact(
+      first_name: '',
+      last_name: '',
+      company: '',
+      phone: '',
+      email: '',
+      address: '',
+      birthday: DateTime.now());
 
   final first_name = TextEditingController();
   final last_name = TextEditingController();
@@ -248,24 +255,17 @@ class _MainAppState extends State<MainApp> {
     String VALemail = email.text;
     String VALaddress = address.text;
 
+    contact.first_name = VALfirst_name;
+    contact.last_name = VALlast_name;
+    contact.company = VALcompany;
+    contact.phone = VALphone;
+    contact.email = VALemail;
+    contact.address = VALaddress;
+    contact.birthday = birthday;
+
     if (!isEditing) {
-      Contact user = Contact(
-          first_name: VALfirst_name,
-          last_name: VALlast_name,
-          company: VALcompany,
-          phone: VALphone,
-          email: VALemail,
-          address: VALaddress,
-          birthday: birthday);
-      await addUser(user);
+      await addUser(contact);
     } else {
-      contact.first_name = VALfirst_name;
-      contact.last_name = VALlast_name;
-      contact.company = VALcompany;
-      contact.phone = VALphone;
-      contact.email = VALemail;
-      contact.address = VALaddress;
-      contact.birthday = birthday;
       await updateUser(contact);
     }
 
